@@ -1,7 +1,7 @@
 use elgato_keylight::KeyLight;
 use std::net::Ipv4Addr;
 use std::str::FromStr;
-use std::time::Duration;
+
 #[tokio::main]
 async fn main() {
     let ip = Ipv4Addr::from_str("10.0.1.32").unwrap();

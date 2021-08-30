@@ -76,7 +76,7 @@ impl KeyLight {
                       _context: Option<Arc<dyn Any>>| {
                     let res = result.unwrap();
                     if res.name() == &name {
-                        tx.blocking_send(res);
+                        let _ = tx.blocking_send(res);
                     }
                 },
             ));
