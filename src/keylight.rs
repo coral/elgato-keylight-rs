@@ -1,6 +1,8 @@
+use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::any::Any;
 use std::net::{AddrParseError, Ipv4Addr};
+use std::ops::DerefMut;
 use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
@@ -13,6 +15,9 @@ use zeroconf::{MdnsBrowser, ServiceDiscovery, ServiceType};
 pub enum ElgatoError {
     #[error("ParseError")]
     ParseError,
+
+    #[error("NoLight")]
+    NoLight,
 
     #[error("DiscoverError")]
     DiscoverError,
@@ -37,9 +42,9 @@ pub struct Status {
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Light {
-    pub on: i64,
-    pub brightness: i64,
-    pub temperature: i64,
+    pub on: u8,
+    pub brightness: u8,
+    pub temperature: u8,
 }
 
 #[allow(dead_code)]
@@ -49,18 +54,12 @@ pub struct KeyLight {
     url: String,
 
     client: reqwest::Client,
-    status: Arc<Mutex<Light>>,
+    status: Arc<Mutex<Status>>,
 }
 
 impl KeyLight {
-    pub fn new_from_ip(addr: Ipv4Addr) -> KeyLight {
-        KeyLight {
-            addr,
-            url: format!("http://{}:9123/elgato/lights", addr.to_string()),
-
-            client: reqwest::Client::new(),
-            status: Default::default(),
-        }
+    pub async fn new_from_ip(addr: Ipv4Addr) -> Result<KeyLight, ElgatoError> {
+        Ok(KeyLight::create(addr, 9123).await?)
     }
 
     pub async fn new_from_name(name: &str) -> Result<KeyLight, ElgatoError> {
@@ -100,18 +99,82 @@ impl KeyLight {
 
         let addr = Ipv4Addr::from_str(&m.address())?;
 
-        Ok(KeyLight {
-            addr,
-            url: format!("http://{}:{}/elgato/lights", m.address(), m.port()),
+        Ok(KeyLight::create(addr, *m.port()).await?)
+    }
+
+    async fn create(ip: Ipv4Addr, port: u16) -> Result<KeyLight, ElgatoError> {
+        let k = KeyLight {
+            addr: ip,
+            url: format!("http://{}:{}/elgato/lights", ip.to_string(), port),
 
             client: reqwest::Client::new(),
             status: Default::default(),
-        })
+        };
+
+        //Test the light
+        let s = k.get().await?;
+        *k.status.lock().await.deref_mut() = s;
+
+        tokio::spawn(KeyLight::poll_status(
+            k.url.clone(),
+            k.client.clone(),
+            k.status.clone(),
+        ));
+
+        Ok(k)
     }
 
-    pub async fn get(&mut self) -> Result<Status, ElgatoError> {
+    async fn poll_status(url: String, client: Client, cache: Arc<Mutex<Status>>) {
+        let mut interval = tokio::time::interval(Duration::from_secs(5));
+        loop {
+            interval.tick().await;
+            match client.get(&url).send().await {
+                Ok(data) => match data.json::<Status>().await {
+                    Ok(status) => {
+                        *cache.lock().await.deref_mut() = status;
+                    }
+                    Err(_) => {}
+                },
+                Err(_) => {}
+            }
+        }
+    }
+
+    pub async fn get(&self) -> Result<Status, ElgatoError> {
         let resp = self.client.get(&self.url).send().await?;
 
         Ok(resp.json::<Status>().await?)
+    }
+
+    pub async fn set_brightness(&mut self, mut brightness: u8) -> Result<(), ElgatoError> {
+        if brightness > 100 {
+            brightness = 100;
+        }
+
+        let mut lock = self.status.lock().await;
+        let mut current = lock.clone();
+        for i in current.lights.iter_mut() {
+            i.brightness = brightness;
+        }
+
+        self.client.put(&self.url).json(&current).send().await?;
+
+        *lock.deref_mut() = current;
+
+        Ok(())
+    }
+
+    pub async fn set_temperature(&mut self, temperature: u8) -> Result<(), ElgatoError> {
+        let mut lock = self.status.lock().await;
+        let mut current = lock.clone();
+        for i in current.lights.iter_mut() {
+            i.temperature = temperature;
+        }
+
+        self.client.put(&self.url).json(&current).send().await?;
+
+        *lock.deref_mut() = current;
+
+        Ok(())
     }
 }
