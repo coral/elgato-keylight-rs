@@ -6,8 +6,9 @@ license = "MIT"
 keywords = ["elgato", "keylight", "light", "control"]
 categories = ["api-bindings"]
 description = "Control the Elgato Keylights series from Rust"
+repository = "https://github.com/coral/elgato-keylight-rs"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+# HELLO LIRNRIL
 
 [dependencies]
 tokio = { version = "1.10.0", features = ["full"] }
