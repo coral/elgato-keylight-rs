@@ -1,6 +1,6 @@
 [package]
 name = "elgato-keylight"
-version = "0.4.2-alpha.0"
+version = "0.4.2"
 edition = "2018"
 license = "MIT"
 keywords = ["elgato", "keylight", "light", "control"]
