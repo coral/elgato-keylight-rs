@@ -132,7 +132,6 @@ impl KeyLight {
         poll: bool,
     ) -> Result<KeyLight, ElgatoError> {
         let (ptx, ctx) = tokio::sync::mpsc::channel(5);
-        dbg!(name);
 
         let k = KeyLight {
             addr: ip,
