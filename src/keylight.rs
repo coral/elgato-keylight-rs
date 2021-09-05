@@ -216,6 +216,32 @@ impl KeyLight {
         Ok(())
     }
 
+    /// Set the brightness of the light relative to the current value
+    ///
+    /// # Arguments
+    ///
+    /// * `brightness` - f64 between -1.0 and 1.0
+    pub async fn set_relative_brightness(
+        &mut self,
+        mut brightness: f64,
+    ) -> Result<(), ElgatoError> {
+        if brightness > 1.0 {
+            brightness = 1.0;
+        }
+
+        let mut lock = self.status.lock().await;
+        let mut current = lock.clone();
+        for i in current.lights.iter_mut() {
+            i.brightness = (i.brightness as f64 + (brightness * 100.0)).clamp(0.0, 100.0) as u8;
+        }
+
+        self.client.put(&self.url).json(&current).send().await?;
+
+        *lock.deref_mut() = current;
+
+        Ok(())
+    }
+
     /// Set the color temperature of the light
     ///
     /// # Arguments
