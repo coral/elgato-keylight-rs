@@ -10,7 +10,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
     kl.set_power(true).await?;
 
     //Set brightness to 30
-    kl.set_relative_brightness(-0.5).await?;
+    let rel = kl.set_relative_brightness(-0.2).await?;
+    dbg!(rel);
 
     Ok(())
 }

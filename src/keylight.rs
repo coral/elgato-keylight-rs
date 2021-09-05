@@ -240,22 +240,26 @@ impl KeyLight {
     pub async fn set_relative_brightness(
         &mut self,
         mut brightness: f64,
-    ) -> Result<(), ElgatoError> {
+    ) -> Result<f64, ElgatoError> {
         if brightness > 1.0 {
             brightness = 1.0;
         }
 
         let mut lock = self.status.lock().await;
         let mut current = lock.clone();
+
+        let mut avg = Vec::new();
         for i in current.lights.iter_mut() {
-            i.brightness = (i.brightness as f64 + (brightness * 100.0)).clamp(0.0, 100.0) as u8;
+            let nv = (i.brightness as f64 + (brightness * 100.0)).clamp(0.0, 100.0);
+            i.brightness = nv as u8;
+            avg.push(nv);
         }
 
         self.client.put(&self.url).json(&current).send().await?;
 
         *lock.deref_mut() = current;
 
-        Ok(())
+        Ok(avg.iter().sum::<f64>() / avg.len() as f64)
     }
 
     /// Set the color temperature of the light
