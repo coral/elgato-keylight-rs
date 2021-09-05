@@ -7,7 +7,7 @@ use std::str::FromStr;
 async fn main() -> Result<(), Box<dyn Error>> {
     //Lookup lamp using IP
     let ip = Ipv4Addr::from_str("10.0.1.32")?;
-    let mut kl = KeyLight::new_from_ip(ip, true).await?;
+    let mut kl = KeyLight::new_from_ip("Key Light 2000", ip, true).await?;
 
     //Turn on the light
     kl.set_power(true).await?;

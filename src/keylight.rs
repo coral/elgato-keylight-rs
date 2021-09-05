@@ -52,6 +52,7 @@ pub struct Light {
 pub struct KeyLight {
     addr: Ipv4Addr,
     url: String,
+    name: String,
 
     poll: bool,
     poll_cancel: tokio::sync::mpsc::Sender<bool>,
@@ -66,8 +67,12 @@ impl KeyLight {
     ///
     /// * `addr` - IP address to the keylight
     /// * `poll` - If the library should poll the light for updates
-    pub async fn new_from_ip(addr: Ipv4Addr, poll: bool) -> Result<KeyLight, ElgatoError> {
-        Ok(KeyLight::create(addr, 9123, poll).await?)
+    pub async fn new_from_ip(
+        name: &str,
+        addr: Ipv4Addr,
+        poll: bool,
+    ) -> Result<KeyLight, ElgatoError> {
+        Ok(KeyLight::create(name, addr, 9123, poll).await?)
     }
 
     /// Create a new Keylight from device name
@@ -117,15 +122,22 @@ impl KeyLight {
 
         let addr = Ipv4Addr::from_str(&m.address())?;
 
-        Ok(KeyLight::create(addr, *m.port(), poll).await?)
+        Ok(KeyLight::create(m.name(), addr, *m.port(), poll).await?)
     }
 
-    async fn create(ip: Ipv4Addr, port: u16, poll: bool) -> Result<KeyLight, ElgatoError> {
+    async fn create(
+        name: &str,
+        ip: Ipv4Addr,
+        port: u16,
+        poll: bool,
+    ) -> Result<KeyLight, ElgatoError> {
         let (ptx, ctx) = tokio::sync::mpsc::channel(5);
+        dbg!(name);
 
         let k = KeyLight {
             addr: ip,
             url: format!("http://{}:{}/elgato/lights", ip.to_string(), port),
+            name: name.to_string(),
 
             poll,
             poll_cancel: ptx,
@@ -191,6 +203,10 @@ impl KeyLight {
         } else {
             self.get_status().await
         }
+    }
+
+    pub async fn name(&self) -> String {
+        self.name.clone()
     }
 
     /// Set the brightness of the light
