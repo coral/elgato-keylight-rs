@@ -16,9 +16,12 @@ async fn main() -> Result<(), Box<dyn Error>> {
     kl.set_brightness(30).await?;
 
     //Slowly increase the color temperature
-    for n in 143..344 {
+    let mut basecolor = 2900;
+    while basecolor <= 7000 {
         //Set temperature
-        kl.set_temperature(n).await?;
+        kl.set_temperature(basecolor).await?;
+
+        basecolor = basecolor + 100;
 
         //Sleep for 1 ms
         tokio::time::sleep(std::time::Duration::from_millis(1)).await;
