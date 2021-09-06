@@ -265,16 +265,15 @@ impl KeyLight {
     ///
     /// # Arguments
     ///
-    /// * `temperature` - Value between 143-344 (no idea what this maps to)
-    pub async fn set_temperature(&mut self, mut temperature: u16) -> Result<(), ElgatoError> {
-        // Figured this out by using the official application.
+    /// * `temperature` - Value between 2900 - 7000 (Kelvin)
+    pub async fn set_temperature(&mut self, temperature: u32) -> Result<(), ElgatoError> {
+        // Light expects a value between 143 to 344 where 143 is 2900K and 344 is 7000K.
+        // Figured this out by sniffing the official application.
         // Might be different for other lights?
-        if temperature < 143 {
-            temperature = 143;
-        }
-        if temperature > 344 {
-            temperature = 344;
-        }
+        let temperature = (((temperature as f32).clamp(2900.0, 7000.0) - 2900.0)
+            / (4100.0 / (344.0 - 143.0))
+            + 143.0)
+            .clamp(143.0, 344.0) as u16;
 
         let mut lock = self.status.lock().await;
         let mut current = lock.clone();
