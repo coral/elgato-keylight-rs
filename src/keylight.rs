@@ -54,7 +54,7 @@ pub struct KeyLight {
     url: String,
     name: String,
 
-    poll: bool,
+    poll: Option<Duration>,
     poll_cancel: tokio::sync::mpsc::Sender<bool>,
     client: reqwest::Client,
     status: Arc<Mutex<Status>>,
@@ -70,7 +70,7 @@ impl KeyLight {
     pub async fn new_from_ip(
         name: &str,
         addr: Ipv4Addr,
-        poll: bool,
+        poll: Option<Duration>,
     ) -> Result<KeyLight, ElgatoError> {
         Ok(KeyLight::create(name, addr, 9123, poll).await?)
     }
@@ -82,7 +82,10 @@ impl KeyLight {
     ///
     /// * `name` - Name of the lamp like "Key Light Left" or whatever your light is named
     /// * `poll` - If the library should poll the light for updates
-    pub async fn new_from_name(name: &str, poll: bool) -> Result<KeyLight, ElgatoError> {
+    pub async fn new_from_name(
+        name: &str,
+        poll: Option<Duration>,
+    ) -> Result<KeyLight, ElgatoError> {
         let (tx, mut rx) = mpsc::channel(200);
         let (ctx, crx) = std::sync::mpsc::channel();
 
@@ -129,7 +132,7 @@ impl KeyLight {
         name: &str,
         ip: Ipv4Addr,
         port: u16,
-        poll: bool,
+        poll: Option<Duration>,
     ) -> Result<KeyLight, ElgatoError> {
         let (ptx, ctx) = tokio::sync::mpsc::channel(5);
 
@@ -148,14 +151,18 @@ impl KeyLight {
         let s = k.get_status().await?;
         *k.status.lock().await.deref_mut() = s;
 
-        if poll {
-            tokio::spawn(KeyLight::poll_status(
-                k.url.clone(),
-                k.client.clone(),
-                k.status.clone(),
-                ctx,
-            ));
-        }
+        match poll {
+            Some(d) => {
+                tokio::spawn(KeyLight::poll_status(
+                    k.url.clone(),
+                    k.client.clone(),
+                    k.status.clone(),
+                    d,
+                    ctx,
+                ));
+            }
+            None => {}
+        };
 
         Ok(k)
     }
@@ -164,9 +171,10 @@ impl KeyLight {
         url: String,
         client: Client,
         cache: Arc<Mutex<Status>>,
+        duration: Duration,
         mut cancel: tokio::sync::mpsc::Receiver<bool>,
     ) {
-        let mut interval = tokio::time::interval(Duration::from_secs(5));
+        let mut interval = tokio::time::interval(duration);
         loop {
             tokio::select! {
                 _ = interval.tick() =>  {
@@ -197,10 +205,9 @@ impl KeyLight {
     }
 
     pub async fn get(&self) -> Result<Status, ElgatoError> {
-        if self.poll {
-            Ok(self.status.lock().await.clone())
-        } else {
-            self.get_status().await
+        match self.poll {
+            Some(_) => Ok(self.status.lock().await.clone()),
+            None => self.get_status().await,
         }
     }
 

@@ -14,13 +14,13 @@ You can test the library easy by opening `examples/from_name.rs`. `from_name.rs`
 
 ```rust
 //Lookup lamp by name (using zeroconf)
-let mut kl = KeyLight::new_from_name("Key Light Left", true).await.unwrap();
+let mut kl = KeyLight::new_from_name("Key Light Left", None).await?;
 
 //Turn on the light
-kl.set_power(true).await.unwrap();
+kl.set_power(true).await?;
 
 //Set brightness to 30
-kl.set_brightness(30).await.unwrap()
+kl.set_brightness(30).await?;
 ```
 
 ## Contributing

@@ -4,7 +4,7 @@ use std::error::Error;
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     //Lookup lamp by name (using zeroconf)
-    let mut kl = KeyLight::new_from_name("Key Light Left", true).await?;
+    let mut kl = KeyLight::new_from_name("Key Light Left", None).await?;
 
     //Turn on the light
     kl.set_power(true).await?;
